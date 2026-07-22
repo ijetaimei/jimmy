@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urban Legacy - Web Edition</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .game-container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #2a2a2a;
+            border: 2px solid #444;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #555;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #ff3b3b;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            background-color: #111;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            border: 1px solid #333;
+        }
+        .stat { font-weight: bold; }
+        .money { color: #4caf50; }
+        .wanted { color: #ffeb3b; }
+        
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 15px;
+            font-size: 1em;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        button:hover {
+            background-color: #444;
+            border-color: #ff3b3b;
+        }
+        .log-box {
+            background-color: #000;
+            height: 250px;
+            overflow-y: auto;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .log-entry { margin-bottom: 8px; border-bottom: 1px dashed #222; padding-bottom: 5px; }
+        .log-positive { color: #4caf50; }
+        .log-negative { color: #ff3b3b; }
+        .log-neutral { color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <div class="header">
+        <h1>Urban Legacy</h1>
+        <p>Los Santos was just the beginning...</p>
+    </div>
+
+    <div class="hud">
+        <div class="stat">الصحة: <span id="health">100</span>%</div>
+        <div class="stat money">المال: $<span id="money">500</span></div>
+        <div class="stat wanted">المطاردة: <span id="wanted">0</span> ⭐</div>
+    </div>
+
+    <div class="actions">
+        <button onclick="performAction('explore')">استكشاف المدينة</button>
+        <button onclick="performAction('mission')">تنفيذ مهمة توصيل</button>
+        <button onclick="performAction('steal')">سرقة سيارة</button>
+        <button onclick="performAction('bribe')">رشوة الشرطة ($200)</button>
+    </div>
+
+    <div class="log-box" id="logBox">
+        <div class="log-entry log-neutral">>> مرحباً بك في Urban Legacy. ابدأ في بناء إمبراطوريتك.</div>
+    </div>
+</div>
+
+<script>
+    // Game State
+    let player = {
+        health: 100,
+        money: 500,
+        wantedLevel: 0
+    };
+
+    const logBox = document.getElementById('logBox');
+
+    function updateHUD() {
+        document.getElementById('health').innerText = player.health;
+        document.getElementById('money').innerText = player.money;
+        
+        let stars = '';
+        for(let i=0; i<player.wantedLevel; i++) stars += '⭐';
+        document.getElementById('wanted').innerText = player.wantedLevel === 0 ? '0' : stars;
+    }
+
+    function addLog(text, type = 'log-neutral') {
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        entry.innerText = `>> ${text}`;
+        logBox.appendChild(entry);
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function performAction(action) {
+        if (player.health <= 0) {
+            addLog("لقد تم القضاء عليك. قم بتحديث الصفحة للبدء من جديد.", "log-negative");
+            return;
+        }
+
+        const chance = Math.random();
+
+        switch(action) {
+            case 'explore':
+                if(chance > 0.7) {
+                    player.money += 50;
+                    addLog("وجدت محفظة ضائعة في الشارع! كسبت $50.", "log-positive");
+                } else {
+                    addLog("تتجول في شوارع المدينة المزدحمة. لا شيء يذكر.", "log-neutral");
+                }
+                break;
+
+            case 'mission':
+                if(chance > 0.3) {
+                    player.money += 150;
+                    addLog("أكملت مهمة التوصيل بنجاح. كسبت $150.", "log-positive");
+                } else {
+                    player.health -= 20;
+                    addLog("تعرضت لهجوم من عصابة منافسة أثناء التوصيل! فقدت 20% من صحتك.", "log-negative");
+                }
+                break;
+
+            case 'steal':
+                if(chance > 0.5) {
+                    player.money += 300;
+                    player.wantedLevel = Math.min(5, player.wantedLevel + 1);
+                    addLog("نجحت في سرقة سيارة رياضية وبيعها في السوق السوداء! كسبت $300 لكن مستوى المطاردة زاد.", "log-positive");
+                } else {
+                    player.health -= 30;
+                    player.wantedLevel = Math.min(5, player.wantedLevel + 2);
+                    addLog("فشلت في سرقة السيارة! أطلق عليك المالك النار وتدخلت الشرطة. فقدت 30% من صحتك.", "log-negative");
+                }
+                break;
+
+            case 'bribe':
+                if (player.wantedLevel > 0) {
+                    if (player.money >= 200) {
+                        player.money -= 200;
+                        player.wantedLevel = Math.max(0, player.wantedLevel - 1);
+                        addLog("دفعت رشوة للشرطة وتم تخفيض مستوى المطاردة.", "log-positive");
+                    } else {
+                        addLog("لا تملك مالاً كافياً لرشوة الشرطة!", "log-negative");
+                    }
+                } else {
+                    addLog("الشرطة لا تبحث عنك حالياً.", "log-neutral");
+                }
+                break;
+        }
+
+        // Police encounter logic
+        if (player.wantedLevel > 3 && chance > 0.6) {
+            player.health -= 40;
+            addLog("هجوم مفاجئ من قوات SWAT! أصبت بشدة.", "log-negative");
+        }
+
+        if (player.health <= 0) {
+            player.health = 0;
+            addLog("WASTED - لقد تم القضاء عليك أو القبض عليك.", "log-negative");
+        }
+
+        updateHUD();
+    }
+</script>
+
+</body>
+</html>
