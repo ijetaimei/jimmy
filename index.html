@@ -1,214 +1,134 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Urban Legacy - Web Edition</title>
-    <style>
-        body {
-            background-color: #1a1a1a;
-            color: #ffffff;
-            font-family: 'Courier New', Courier, monospace;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .game-container {
-            width: 100%;
-            max-width: 800px;
-            background-color: #2a2a2a;
-            border: 2px solid #444;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        }
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #555;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        .header h1 {
-            color: #ff3b3b;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 5px;
-        }
-        .hud {
-            display: flex;
-            justify-content: space-between;
-            background-color: #111;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 1.2em;
-            border: 1px solid #333;
-        }
-        .stat { font-weight: bold; }
-        .money { color: #4caf50; }
-        .wanted { color: #ffeb3b; }
-        
-        .actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        button {
-            background-color: #333;
-            color: white;
-            border: 1px solid #555;
-            padding: 15px;
-            font-size: 1em;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: all 0.3s;
-            font-family: inherit;
-        }
-        button:hover {
-            background-color: #444;
-            border-color: #ff3b3b;
-        }
-        .log-box {
-            background-color: #000;
-            height: 250px;
-            overflow-y: auto;
-            padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #333;
-            font-size: 0.9em;
-            line-height: 1.5;
-        }
-        .log-entry { margin-bottom: 8px; border-bottom: 1px dashed #222; padding-bottom: 5px; }
-        .log-positive { color: #4caf50; }
-        .log-negative { color: #ff3b3b; }
-        .log-neutral { color: #aaa; }
-    </style>
-</head>
-<body>
+import pygame
+import random
+import sys
 
-<div class="game-container">
-    <div class="header">
-        <h1>Urban Legacy</h1>
-        <p>Los Santos was just the beginning...</p>
-    </div>
+# 1. إعداد المكتبة والنافذة
+pygame.init()
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Urban Legacy 2D - Mini GTA")
 
-    <div class="hud">
-        <div class="stat">الصحة: <span id="health">100</span>%</div>
-        <div class="stat money">المال: $<span id="money">500</span></div>
-        <div class="stat wanted">المطاردة: <span id="wanted">0</span> ⭐</div>
-    </div>
+# 2. الألوان
+COLOR_BG = (50, 50, 50)        # لون الشارع
+COLOR_BUILDING = (90, 90, 100) # لون المباني
+COLOR_PLAYER = (0, 200, 255)   # لون سيارتك (أزرق)
+COLOR_MONEY = (0, 255, 100)    # الفلوس (أخضر)
+COLOR_POLICE = (255, 50, 50)   # الشرطة (أحمر)
+COLOR_TEXT = (255, 255, 255)
 
-    <div class="actions">
-        <button onclick="performAction('explore')">استكشاف المدينة</button>
-        <button onclick="performAction('mission')">تنفيذ مهمة توصيل</button>
-        <button onclick="performAction('steal')">سرقة سيارة</button>
-        <button onclick="performAction('bribe')">رشوة الشرطة ($200)</button>
-    </div>
+clock = pygame.time.Clock()
+font = pygame.font.SysFont("Arial", 22, bold=True)
 
-    <div class="log-box" id="logBox">
-        <div class="log-entry log-neutral">>> مرحباً بك في Urban Legacy. ابدأ في بناء إمبراطوريتك.</div>
-    </div>
-</div>
+# 3. متغيرات اللاعب
+player = pygame.Rect(400, 300, 25, 25)
+speed = 5
+money_score = 0
+health = 100
+wanted_level = 0
 
-<script>
-    // Game State
-    let player = {
-        health: 100,
-        money: 500,
-        wantedLevel: 0
-    };
+# 4. المباني (عقبات لا يمكنك اختراقها)
+buildings = [
+    pygame.Rect(100, 100, 180, 140),
+    pygame.Rect(520, 100, 180, 140),
+    pygame.Rect(100, 360, 180, 140),
+    pygame.Rect(520, 360, 180, 140),
+]
 
-    const logBox = document.getElementById('logBox');
+# 5. الفلوس والشرطة
+money_bags = [pygame.Rect(random.randint(50, WIDTH-50), random.randint(50, HEIGHT-50), 15, 15) for _ in range(6)]
+police_cars = []
 
-    function updateHUD() {
-        document.getElementById('health').innerText = player.health;
-        document.getElementById('money').innerText = player.money;
-        
-        let stars = '';
-        for(let i=0; i<player.wantedLevel; i++) stars += '⭐';
-        document.getElementById('wanted').innerText = player.wantedLevel === 0 ? '0' : stars;
-    }
+def spawn_police():
+    return pygame.Rect(random.choice([20, WIDTH-40]), random.choice([20, HEIGHT-40]), 25, 25)
 
-    function addLog(text, type = 'log-neutral') {
-        const entry = document.createElement('div');
-        entry.className = `log-entry ${type}`;
-        entry.innerText = `>> ${text}`;
-        logBox.appendChild(entry);
-        logBox.scrollTop = logBox.scrollHeight;
-    }
+# الحلقة الرئيسية للعبة (Game Loop)
+running = True
+while running:
+    clock.tick(60) # 60 إطار في الثانية
+    
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
 
-    function performAction(action) {
-        if (player.health <= 0) {
-            addLog("لقد تم القضاء عليك. قم بتحديث الصفحة للبدء من جديد.", "log-negative");
-            return;
-        }
+    # التحكم بالحركة (WASD أو الأسهم)
+    keys = pygame.key.get_pressed()
+    dx, dy = 0, 0
+    if keys[pygame.K_LEFT] or keys[pygame.K_a]:  dx -= speed
+    if keys[pygame.K_RIGHT] or keys[pygame.K_d]: dx += speed
+    if keys[pygame.K_UP] or keys[pygame.K_w]:    dy -= speed
+    if keys[pygame.K_DOWN] or keys[pygame.K_s]:  dy += speed
 
-        const chance = Math.random();
+    # اصطدام اللاعب بالمباني افقياً ورأسياً
+    player.x += dx
+    for b in buildings:
+        if player.colliderect(b):
+            if dx > 0: player.right = b.left
+            if dx < 0: player.left = b.right
 
-        switch(action) {
-            case 'explore':
-                if(chance > 0.7) {
-                    player.money += 50;
-                    addLog("وجدت محفظة ضائعة في الشارع! كسبت $50.", "log-positive");
-                } else {
-                    addLog("تتجول في شوارع المدينة المزدحمة. لا شيء يذكر.", "log-neutral");
-                }
-                break;
+    player.y += dy
+    for b in buildings:
+        if player.colliderect(b):
+            if dy > 0: player.bottom = b.top
+            if dy < 0: player.top = b.bottom
 
-            case 'mission':
-                if(chance > 0.3) {
-                    player.money += 150;
-                    addLog("أكملت مهمة التوصيل بنجاح. كسبت $150.", "log-positive");
-                } else {
-                    player.health -= 20;
-                    addLog("تعرضت لهجوم من عصابة منافسة أثناء التوصيل! فقدت 20% من صحتك.", "log-negative");
-                }
-                break;
+    # منع الخروج من حدود الشاشة
+    player.clamp_ip(pygame.Rect(0, 0, WIDTH, HEIGHT))
 
-            case 'steal':
-                if(chance > 0.5) {
-                    player.money += 300;
-                    player.wantedLevel = Math.min(5, player.wantedLevel + 1);
-                    addLog("نجحت في سرقة سيارة رياضية وبيعها في السوق السوداء! كسبت $300 لكن مستوى المطاردة زاد.", "log-positive");
-                } else {
-                    player.health -= 30;
-                    player.wantedLevel = Math.min(5, player.wantedLevel + 2);
-                    addLog("فشلت في سرقة السيارة! أطلق عليك المالك النار وتدخلت الشرطة. فقدت 30% من صحتك.", "log-negative");
-                }
-                break;
+    # جمع الفلوس
+    for m in money_bags[:]:
+        if player.colliderect(m):
+            money_bags.remove(m)
+            money_score += 100
+            money_bags.append(pygame.Rect(random.randint(50, WIDTH-50), random.randint(50, HEIGHT-50), 15, 15))
+            
+            # زيادة النجوم والشرطة كل ما جمعت فلوس أكثر
+            if money_score % 300 == 0 and wanted_level < 5:
+                wanted_level += 1
+                police_cars.append(spawn_police())
 
-            case 'bribe':
-                if (player.wantedLevel > 0) {
-                    if (player.money >= 200) {
-                        player.money -= 200;
-                        player.wantedLevel = Math.max(0, player.wantedLevel - 1);
-                        addLog("دفعت رشوة للشرطة وتم تخفيض مستوى المطاردة.", "log-positive");
-                    } else {
-                        addLog("لا تملك مالاً كافياً لرشوة الشرطة!", "log-negative");
-                    }
-                } else {
-                    addLog("الشرطة لا تبحث عنك حالياً.", "log-neutral");
-                }
-                break;
-        }
+    # ذكاء اصطناعي للشرطة (تلاحق مكان اللاعب)
+    for p in police_cars:
+        if p.x < player.x: p.x += 2
+        if p.x > player.x: p.x -= 2
+        if p.y < player.y: p.y += 2
+        if p.y > player.y: p.y -= 2
 
-        // Police encounter logic
-        if (player.wantedLevel > 3 && chance > 0.6) {
-            player.health -= 40;
-            addLog("هجوم مفاجئ من قوات SWAT! أصبت بشدة.", "log-negative");
-        }
+        # عند اصطدام الشرطة باللاعب
+        if player.colliderect(p):
+            health -= 1
 
-        if (player.health <= 0) {
-            player.health = 0;
-            addLog("WASTED - لقد تم القضاء عليك أو القبض عليك.", "log-negative");
-        }
+    # --- الرسم على الشاشة ---
+    screen.fill(COLOR_BG)
 
-        updateHUD();
-    }
-</script>
+    # رسم المباني
+    for b in buildings:
+        pygame.draw.rect(screen, COLOR_BUILDING, b)
 
-</body>
-</html>
+    # رسم الفلوس
+    for m in money_bags:
+        pygame.draw.rect(screen, COLOR_MONEY, m)
+
+    # رسم الشرطة
+    for p in police_cars:
+        pygame.draw.rect(screen, COLOR_POLICE, p)
+
+    # رسم اللاعب
+    pygame.draw.rect(screen, COLOR_PLAYER, player)
+
+    # عرض الواجهة (HUD)
+    stars_display = "★" * wanted_level
+    hud = font.render(f"Money: ${money_score}  |  Health: {max(0, health)}%  |  Wanted: {stars_display}", True, COLOR_TEXT)
+    screen.blit(hud, (15, 15))
+
+    # نهاية اللعبة
+    if health <= 0:
+        over_text = font.render("WASTED - GAME OVER", True, (255, 50, 50))
+        screen.blit(over_text, (WIDTH//2 - 120, HEIGHT//2))
+        pygame.display.flip()
+        pygame.time.wait(3000)
+        running = False
+
+    pygame.display.flip()
+
+pygame.quit()
+sys.exit()
